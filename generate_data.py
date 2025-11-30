@@ -24,16 +24,22 @@ print(f"Generando {FILE_NAME} con {NUM_LINES} lineas...")
 with open(FILE_NAME, "w") as f:
     # El bucle for itera NUM_LINES veces para generar cada linea del log. La variable _ es una convención en Python para indicar que no se usará el valor de la variable.
     for _ in range(NUM_LINES):
-        ip = random.choice(IPS)
+        ip = random.choice(IPS)  # Elige una IP aleatoria de la lista IPS.
+        # Genera la fecha y hora actual en formato común de logs.
         timestamp = time.strftime("%d/%b/%Y:%H:%M:%S +0000")
+        # Elige un método HTTP aleatorio (GET, POST, PUT).
         method = random.choice(["GET", "POST", "PUT"])
+        # Elige una ruta aleatoria de la lista PATHS.
         path = random.choice(PATHS)
+        # Elige un código de estado HTTP aleatorio de la lista STATUS_CODES.
         status = random.choice(STATUS_CODES)
+        # Genera un tamaño de respuesta aleatorio entre 100 y 5000 bytes.
         size = random.randint(100, 5000)
 
         # Formato estandar tipo Apache/Nginx
         # Ejemplo: 192.168.1.1 - - [27/Nov/2025:10:00:00 +0000] "GET /home HTTP/1.1" 200 1234
+        # Construye la linea del log con los datos generados.
         line = f'{ip} - - [{timestamp}] "{method} {path} HTTP/1.1" {status} {size}\n'
-        f.write(line)
+        f.write(line)  # Escribe la linea generada en el archivo.
 
 print("¡Listo! Archivo creado.")
