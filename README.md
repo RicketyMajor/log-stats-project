@@ -8,7 +8,7 @@ El objetivo del proyecto es construir un Stream Processor rudimentario. Se debe 
 
 #### generate_data.py
 
-Más importante que la herramienta en sí, son los datos que se van a procesar. El CLI debe poder procesar un archivo de logs de servidor web, y para no hundirnos en la inmensidad de los datos, se generará un archivo `.log` con datos controlados, pero aleatorios. La idea es convertir este archivo en los cimientos de la herramienta analizadora. Para eso, se creó un script en Python llamado `generate_data.py` (ver en [[generate_data.py]]): este genera archivos de logs falsos en formato Common Log Format, lo cuál es muy útil para pruebas y nos ahorra la necesidad de utilizar logs reales de producción (por ahora). El formato es el siguiente:
+Más importante que la herramienta en sí, son los datos que se van a procesar. El CLI debe poder procesar un archivo de logs de servidor web, y para no hundirnos en la inmensidad de los datos, se generará un archivo `.log` con datos controlados, pero aleatorios. La idea es convertir este archivo en los cimientos de la herramienta analizadora. Para eso, se creó un script en Python llamado `generate_data.py` (ver en [generate_data.py](generate_date.py)): este genera archivos de logs falsos en formato Common Log Format, lo cuál es muy útil para pruebas y nos ahorra la necesidad de utilizar logs reales de producción (por ahora). El formato es el siguiente:
 
 ```bash
 IP - - [timestamp] "METHOD path HTTP/1.1" status size
@@ -52,7 +52,7 @@ La creación de estos datos sintéticos fue un éxito, y se generaron diez mil d
 
 #### main.py
 
-Con el archivo `server.log` listo para analizar, se creó el `main.py` (ver en [[main.py - parte 1]] nombre temporal, ya que por ahora está todo centralizado en este). Este es un analizador de logs de servidor web en formato similar al anterior código (CLF), y que actúa como una herramienta que extrae estadísticas de archivos de logs sin cargar todo en memoria. Esto es sumamente importante dada la introducción del principio: los ejemplos vistos aquí tan solo contienen diez mil logs, y un archivo de un servidor grande puede contener cientos de veces esas cifras. Cargar todo eso en la memoria sería una sentencia de muerte (para el PC, claro).
+Con el archivo `server.log` listo para analizar, se creó el `main.py` (ver en [main.py](main.py-parte_1_y_2)) nombre temporal, ya que por ahora está todo centralizado en este). Este es un analizador de logs de servidor web en formato similar al anterior código (CLF), y que actúa como una herramienta que extrae estadísticas de archivos de logs sin cargar todo en memoria. Esto es sumamente importante dada la introducción del principio: los ejemplos vistos aquí tan solo contienen diez mil logs, y un archivo de un servidor grande puede contener cientos de veces esas cifras. Cargar todo eso en la memoria sería una sentencia de muerte (para el PC, claro).
 
 Este script, luego de analizar los logs línea por línea, entrega una serie de estadísticas en la terminal. Estas son:
 
