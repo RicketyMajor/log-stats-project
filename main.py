@@ -5,7 +5,6 @@ from datetime import datetime
 
 LOG_PATTERN = r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+)$'
 
-
 def format_bytes(size):
     power = 2**10
     n = 0

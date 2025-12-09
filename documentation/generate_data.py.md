@@ -6,6 +6,7 @@ Este es un script para generar archivos de logs falsos en formato CLF. El format
     IP - - [timestamp] "METHOD path HTTP/1.1" status size
 ```
 
+# Parte 1: Generación de logs básicos 
 ## Importaciones
 
 Para este código, se utilizaron dos importaciones: `random`, que se usa para generar selecciones aleatorias de listas y números; y `time`, para obtener y formatear timestamps (fecha/hora actual).
@@ -125,3 +126,44 @@ Finalmente, la función `f.write()` escribe la cadena en el archivo. Ojo que no 
 ```python
 f.write(line)
 ```
+
+# Parte 2: Implementación de nuevos datos a los logs
+
+## Importaciones
+
+Para esta nueva parte del programa, se integraron dos herramientas específicas del módulo estándar `datetime` para trabajar con el tiempo. Por ejemplo, con `datetime` se manejan las fechas y horas específicas, un punto en el tiempo; con `timedelta` se manejan duraciones o diferencias de tiempo, como un intervalo.
+
+```python
+from datetime import datetime, timedelta
+```
+
+## Configuración
+
+Las variables clásicas han sido refinadas y se han añadido más variedad.
+
+```python
+IPS = ["192.168.1.1", "10.0.0.1", "172.16.0.5", "192.168.1.200", "8.8.8.8"]
+STATUS_CODES = [200, 200, 200, 201, 400, 401, 403, 404, 404, 500, 502, 503]
+PATHS = ["/home", "/about", "/contact", "/api/login", "/api/products", "/assets/css/style.css", "/assets/js/app.js", "/admin"]
+METHODS = ["GET", "GET", "GET", "POST", "PUT", "DELETE"]
+```
+
+Se mantiene la repetición de valores para redirigir las estadísticas a unas más controladas. 
+
+## Generación
+
+Este script se modificó para que se distribuyan las peticiones a lo largo de 24 horas. Dentro del `with` se define una nueva variable para esto, llamada `start_time`, el cual utiliza el módulo `datetime.now()` para esto.
+
+```python
+with open(FILE_NAME, "w") as f: 
+	start_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+```
+
+Por último, se modificaron las variables dentro del bucle `for`, simulando una hora aleatoria dentro del día. Se añaden entre 0 y 86,400 segundos (24 horas) a la fecha base.
+
+```python
+random_seconds = random.randint(0, 24 * 60 * 60)
+current_time = start_time + timedelta(seconds=random_seconds)
+timestamp = current_time.strftime("%d/%b/%Y:%H:%M:%S +0000")
+```
+

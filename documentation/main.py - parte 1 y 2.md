@@ -8,6 +8,7 @@ Para usarlo, se debe ejecutar en la terminal `python3 main.py <ruta_del_archivo_
 - Top 5 IPs más activas (con porcentajes).
 - Distribución de códigos de estado HTTP (con porcentajes).
 
+# Parte 1: Analizador básico de logs
 ## Importaciones
 
 Para este código, se usaron las siguientes importaciones: `sys`, que se usa para acceder a argumentos de línea de comandos (`sys.argv`) y salir del programa (`sys.exit`); `re`, que es para usar expresiones regulares (regex) y parsear el formato de log; y por último `Counter`, que es un estructura de datos optimizada para contar elementos.
@@ -266,3 +267,86 @@ Se llama a la función principal con la ruta proporcionada. El procesamiento com
 log_file = sys.argv[1]
 process_log_file(log_file)
 ```
+
+# Parte 2: Implementación de nuevos análisis de estadísticas
+
+Para implementar esta parte, se hizo una investigación e introducción a dos conceptos antes de tocar el código principal.
+El primer el **String Splitting**. El regex anterior devolvía el grupo de la petición completa: `"GET /api/login HTTP/1.1"`. Para analizar métodos y rutas por separado, se usa el método `.split()` de Python.
+Lo segundo fue implementar un **Parsing de Fechas** con la librería `datetime`. El log tiene lo siguiente: `27/Nov/2025:14:30:00 +0000`. Para saber la hora en sí (las 14 horas), se puede cortar el texto a mano. El tema es que es frágil, por lo que lo correcto es convertir ese texto en un objeto `datetime` que entiende calendarios. Se usa `datetime.strptime`, que es el **String Parse Time**.
+
+## Importaciones
+
+Al igual que con el generador, la herramienta `datetime`, proveniente del módulo con el mismo nombre, es necesaria para analizar el tiempo.
+
+```python
+from datetime import datetime
+```
+
+## Definición de Contadores
+
+Dentro de la función `def process_log_file()` de definieron nuevas y antiguas variables con el módulo `Counter()`.
+
+```python
+ip_counter = Counter()
+status_counter = Counter()
+method_counter = Counter()
+path_counter = Counter()
+hour_counter = Counter()
+```
+
+Seguido, se define una extracción básica (la cual había quedado en deuda en la parte anterior del proyecto).
+
+```python
+if match:
+	ip = match.group(1)
+	timestamp_str = match.group(2) # "30/Nov/2025:15:00:00 +0000"
+	request_str = match.group(3) # "GET /home HTTP/1.1"
+```
+
+## Lógica de Procesamiento Avanzado
+
+1. Se busca separar `Metodo` y `Ruta`. Para eso, se usa `.split()`, para dividir por espacios. Por ejemplo `"GET /home HTTP/1.1" -> ["GET", "/home", "HTTP/1.1"]`. A veces el request está mal o es vacío, por lo que es importante definir con `else:` que pasa en estos casos
+2. Se busca extraer la hora. El formato log es `30/Nov/2025:15:00:00 +0000`, y solo se quiere el `"15"`. La forma rápida: `split por ':' -> toma el elemento en indice 1`.
+
+```python
+if len(request_str.split()) == 3:
+	method, path, protocol = request_str.split()
+else:
+	method, path = ("UNKNOWN", "UNKNOWN")
+	
+try:
+	current_hour = timestamp_str.split(':')[1] # "30/Nov/2025" : "15" : "00" : "00 +0000"
+except IndexError:
+	current_hour = "00"
+```
+
+## Agregación
+
+El final del bucle `for`. Aquí se añadieron nuevos acumuladores acorde a lo agregado anteriormente.
+
+```python
+method_counter[method] += 1
+path_counter[path] += 1
+hour_counter[current_hour] += 1
+```
+
+## Reporte Extendido
+
+Ya para el final del código, nuevos `print()` fueron añadidos para mostrar en terminal las nuevas implementaciones.
+
+```python
+print("\n--- Top Rutas Visitadas (Idea B) ---") for path, count in path_counter.most_common(5): print(f"{path:<20} : {count} visitas") 
+print("\n--- Metodos HTTP (Idea A) ---") for method, count in method_counter.most_common(): print(f"{method:<10} : {count}")
+```
+
+El más complejo son las **Horas Picos**, las cuales no solo están ordenadas por hora, sino que se genera una pequeña barra visual con asteriscos para ver a simple vista aquellas horas que más tráfico generan. Se escala 1 asterisco por cada 50 peticiones aproximadamente (esto para que quepa en pantalla).
+
+```python
+print("\n--- Horas Pico de Trafico (Idea C) ---")
+print(f"{'Hora':<5} | {'Peticiones':<10} | {'Barra Visual'}")
+print("-" * 40)
+for hour, count in sorted(hour_counter.items()):
+	bar = "*" * (count // 50)
+	print(f"{hour:<5} | {count:<10} | {bar}")
+```
+
