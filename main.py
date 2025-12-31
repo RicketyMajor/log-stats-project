@@ -2,8 +2,10 @@ import sys
 import re
 from collections import Counter
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 LOG_PATTERN = r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+)$'
+
 
 def format_bytes(size):
     power = 2**10
@@ -13,6 +15,44 @@ def format_bytes(size):
         size /= power
         n += 1
     return f"{size:.2f} {power_labels[n]}"
+
+
+def generate_charts(ip_counter, status_counter, hour_counter):
+    print("--- Generando reportes visuales (PNG)... ---")
+
+    # 1. Grafico de Barras: Top 10 IPs
+    # Preparamos los datos: Separamos las IPs (eje X) de los conteos (eje Y)
+    top_ips = ip_counter.most_common(10)
+    x_values = [ip for ip, count in top_ips]
+    y_values = [count for ip, count in top_ips]
+
+    # Creamos la figura
+    plt.figure(figsize=(10, 6))  # Tamano en pulgadas (ancho, alto)
+    plt.bar(x_values, y_values, color='skyblue')  # Tipo de grafico: Barra
+    plt.title('Top 10 IPs mas activas')
+    plt.xlabel('Direccion IP')
+    plt.ylabel('Numero de Peticiones')
+    # Rotamos las etiquetas del eje X para que se lean bien
+    plt.xticks(rotation=45)
+    plt.tight_layout()  # Ajuste automatico para que no se corten textos
+
+    # Guardamos en disco
+    plt.savefig('reporte_ips.png')
+    plt.close()  # Importante: Cerrar la figura para liberar memoria
+    print("-> Generado: reporte_ips.png")
+
+    # 2. Grafico de Torta (Pie Chart): Codigos de Estado
+    # Filtramos para mostrar solo los importantes (si hay muchos codigos raros, el grafico se ve mal)
+    labels = list(status_counter.keys())
+    sizes = list(status_counter.values())
+
+    plt.figure(figsize=(8, 8))
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    plt.title('Distribucion de Codigos de Estado HTTP')
+
+    plt.savefig('reporte_status.png')
+    plt.close()
+    print("-> Generado: reporte_status.png")
 
 
 def process_log_file(file_path):
@@ -63,8 +103,10 @@ def process_log_file(file_path):
                     continue
 
         if total_requests == 0:
-            print("El archivo esta vacio o no se encontraron lineas validas.")
             return
+        print(f"Procesadas {total_requests} lineas.")
+
+        generate_charts(ip_counter, status_counter, hour_counter)
 
         avg_size = total_bytes / total_requests
 
