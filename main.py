@@ -1,9 +1,9 @@
 import sys
 import re
+import argparse  # [FASE 3] Importamos la librería para gestionar argumentos
 from collections import Counter
 from datetime import datetime
 import matplotlib.pyplot as plt
-# [NUEVO] Importaciones para Plotly (Fase 2B)
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -59,7 +59,6 @@ def generate_html_report(hour_counter, status_counter):
     print("--- Generando dashboard interactivo (HTML)... ---")
 
     # 1. Preparacion de datos
-    # Ordenamos las horas (00, 01... 23)
     hours_sorted = sorted(hour_counter.items())
     x_hours = [h for h, count in hours_sorted]
     y_requests = [count for h, count in hours_sorted]
@@ -75,14 +74,12 @@ def generate_html_report(hour_counter, status_counter):
     )
 
     # 3. Añadir Trazas
-    # Trace 1: Barras temporales
     fig.add_trace(
         go.Bar(x=x_hours, y=y_requests,
                name="Peticiones", marker_color='indigo'),
         row=1, col=1
     )
 
-    # Trace 2: Donut Chart de Status
     fig.add_trace(
         go.Pie(labels=labels_status, values=values_status,
                name="Status", hole=.4),
@@ -101,7 +98,7 @@ def generate_html_report(hour_counter, status_counter):
     print("-> Generado: dashboard.html (Abrelo en tu navegador)")
 
 
-def process_log_file(file_path):
+def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
     print(f"--- Iniciando analisis de: {file_path} ---\n")
     total_requests = 0
     total_bytes = 0
@@ -153,8 +150,7 @@ def process_log_file(file_path):
             print("Archivo vacio.")
             return
 
-        # --- SECCION DE REPORTES ---
-        # 1. Reporte ASCII (Texto)
+        # --- SECCION DE REPORTES (TEXTO ASCII) ---
         print(f"Procesadas {total_requests} lineas.")
         avg_size = total_bytes / total_requests
         print(f"Trafico total        : {format_bytes(total_bytes)}")
@@ -185,10 +181,13 @@ def process_log_file(file_path):
             percentage = (count / total_requests) * 100
             print(f"Status {status}     : {count:<5} ({percentage:.1f}%)")
 
-        # 2. Generar Graficos (Fase 2)
-        generate_charts(ip_counter, status_counter, hour_counter)  # Matplotlib
-        # Plotly [NUEVO]
-        generate_html_report(hour_counter, status_counter)
+        # [FASE 3] LOGICA CONDICIONAL DE GRAFICOS
+        if not flags.no_plot:
+            # Solo generamos gráficos si el usuario NO usó --no-plot
+            generate_charts(ip_counter, status_counter, hour_counter)
+            generate_html_report(hour_counter, status_counter)
+        else:
+            print("\n[INFO] Salida gráfica omitida por el usuario (--no-plot)")
 
     except FileNotFoundError:
         print(f"Error: El archivo '{file_path}' no existe.")
@@ -199,9 +198,29 @@ def process_log_file(file_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Uso correcto: python3 main.py <ruta_del_log>")
-        sys.exit(1)
+    # [FASE 3] Configuración de argparse
+    parser = argparse.ArgumentParser(
+        description="Analizador de Logs de Servidor (CLF). Genera reportes de trafico y seguridad."
+    )
 
-    log_file = sys.argv[1]
-    process_log_file(log_file)
+    # Argumento posicional (obligatorio): El archivo
+    parser.add_argument("log_file", help="Ruta al archivo de log a analizar")
+
+    # Argumento opcional (flag): --no-plot
+    parser.add_argument(
+        "--no-plot",
+        action="store_true",
+        help="Si se usa, no genera graficos (PNG/HTML). Ideal para servidores sin interfaz."
+    )
+
+    # Argumento opcional: --json (Preparacion para Fase 4)
+    parser.add_argument(
+        "--json",
+        help="Exportar resultados a un archivo JSON (ej: --json output.json)"
+    )
+
+    # Parsear argumentos
+    args = parser.parse_args()
+
+    # Ejecutar logica pasando los argumentos parseados
+    process_log_file(args.log_file, args)
