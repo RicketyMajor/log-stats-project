@@ -1,11 +1,13 @@
 import sys
 import re
-import argparse  # [FASE 3] Importamos la librería para gestionar argumentos
+import argparse
+import json
 from collections import Counter
 from datetime import datetime
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+
 
 LOG_PATTERN = r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+)$'
 
@@ -18,6 +20,19 @@ def format_bytes(size):
         size /= power
         n += 1
     return f"{size:.2f} {power_labels[n]}"
+
+
+def export_results_to_json(data, filename):
+    """
+    [FASE 4] Guarda un diccionario de datos en un archivo JSON.
+    Usa 'indent=4' para que sea legible por humanos (pretty print).
+    """
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        print(f"\n[INFO] Datos exportados exitosamente a: {filename}")
+    except Exception as e:
+        print(f"\n[ERROR] No se pudo exportar el JSON: {e}")
 
 
 def generate_charts(ip_counter, status_counter, hour_counter):
@@ -184,6 +199,34 @@ def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
         # [FASE 3] LOGICA CONDICIONAL DE GRAFICOS
         if not flags.no_plot:
             # Solo generamos gráficos si el usuario NO usó --no-plot
+            generate_charts(ip_counter, status_counter, hour_counter)
+            generate_html_report(hour_counter, status_counter)
+        else:
+            print("\n[INFO] Salida gráfica omitida por el usuario (--no-plot)")
+
+        report_data = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "file_analyzed": file_path,
+            "summary": {
+                "total_requests": total_requests,
+                "total_bytes": total_bytes,
+                "avg_size_bytes": avg_size
+            },
+            # Convertimos lista de tuplas a Dict
+            "top_ips": dict(ip_counter.most_common(10)),
+            "top_paths": dict(path_counter.most_common(10)),
+            "methods": dict(method_counter),
+            "status_codes": dict(status_counter),
+            "hourly_traffic": dict(sorted(hour_counter.items()))
+        }
+        # LOGICA CONDICIONAL (FLAGS)
+
+        # 1. Exportar JSON si el usuario lo pidió
+        if flags.json:
+            export_results_to_json(report_data, flags.json)
+
+        # 2. Graficos
+        if not flags.no_plot:
             generate_charts(ip_counter, status_counter, hour_counter)
             generate_html_report(hour_counter, status_counter)
         else:
