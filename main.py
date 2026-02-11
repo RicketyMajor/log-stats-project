@@ -3,6 +3,9 @@ import re
 from collections import Counter
 from datetime import datetime
 import matplotlib.pyplot as plt
+# [NUEVO] Importaciones para Plotly (Fase 2B)
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 LOG_PATTERN = r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+)$'
 
@@ -18,31 +21,27 @@ def format_bytes(size):
 
 
 def generate_charts(ip_counter, status_counter, hour_counter):
+    """Genera reportes estaticos (PNG) con Matplotlib (Fase 2A)"""
     print("--- Generando reportes visuales (PNG)... ---")
 
     # 1. Grafico de Barras: Top 10 IPs
-    # Preparamos los datos: Separamos las IPs (eje X) de los conteos (eje Y)
     top_ips = ip_counter.most_common(10)
     x_values = [ip for ip, count in top_ips]
     y_values = [count for ip, count in top_ips]
 
-    # Creamos la figura
-    plt.figure(figsize=(10, 6))  # Tamano en pulgadas (ancho, alto)
-    plt.bar(x_values, y_values, color='skyblue')  # Tipo de grafico: Barra
+    plt.figure(figsize=(10, 6))
+    plt.bar(x_values, y_values, color='skyblue')
     plt.title('Top 10 IPs mas activas')
     plt.xlabel('Direccion IP')
     plt.ylabel('Numero de Peticiones')
-    # Rotamos las etiquetas del eje X para que se lean bien
     plt.xticks(rotation=45)
-    plt.tight_layout()  # Ajuste automatico para que no se corten textos
+    plt.tight_layout()
 
-    # Guardamos en disco
     plt.savefig('reporte_ips.png')
-    plt.close()  # Importante: Cerrar la figura para liberar memoria
+    plt.close()
     print("-> Generado: reporte_ips.png")
 
-    # 2. Grafico de Torta (Pie Chart): Codigos de Estado
-    # Filtramos para mostrar solo los importantes (si hay muchos codigos raros, el grafico se ve mal)
+    # 2. Grafico de Torta: Codigos de Estado
     labels = list(status_counter.keys())
     sizes = list(status_counter.values())
 
@@ -55,10 +54,59 @@ def generate_charts(ip_counter, status_counter, hour_counter):
     print("-> Generado: reporte_status.png")
 
 
+def generate_html_report(hour_counter, status_counter):
+    """Genera Dashboard interactivo (HTML) con Plotly (Fase 2B)"""
+    print("--- Generando dashboard interactivo (HTML)... ---")
+
+    # 1. Preparacion de datos
+    # Ordenamos las horas (00, 01... 23)
+    hours_sorted = sorted(hour_counter.items())
+    x_hours = [h for h, count in hours_sorted]
+    y_requests = [count for h, count in hours_sorted]
+
+    labels_status = list(status_counter.keys())
+    values_status = list(status_counter.values())
+
+    # 2. Creacion del Lienzo (Subplots)
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Trafico por Hora (24h)", "Distribucion de Errores"),
+        specs=[[{"type": "xy"}, {"type": "domain"}]]
+    )
+
+    # 3. Añadir Trazas
+    # Trace 1: Barras temporales
+    fig.add_trace(
+        go.Bar(x=x_hours, y=y_requests,
+               name="Peticiones", marker_color='indigo'),
+        row=1, col=1
+    )
+
+    # Trace 2: Donut Chart de Status
+    fig.add_trace(
+        go.Pie(labels=labels_status, values=values_status,
+               name="Status", hole=.4),
+        row=1, col=2
+    )
+
+    # 4. Estetica Global
+    fig.update_layout(
+        title_text="Dashboard de Analisis de Logs - Servidor Principal",
+        template="plotly_dark",
+        showlegend=True
+    )
+
+    # 5. Guardar
+    fig.write_html("dashboard.html")
+    print("-> Generado: dashboard.html (Abrelo en tu navegador)")
+
+
 def process_log_file(file_path):
     print(f"--- Iniciando analisis de: {file_path} ---\n")
     total_requests = 0
     total_bytes = 0
+
+    # Contadores
     ip_counter = Counter()
     status_counter = Counter()
     method_counter = Counter()
@@ -66,7 +114,6 @@ def process_log_file(file_path):
     hour_counter = Counter()
 
     try:
-
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
@@ -81,44 +128,41 @@ def process_log_file(file_path):
                     status = match.group(4)
                     size_str = match.group(5)
 
+                    # Separar Metodo y Ruta
                     if len(request_str.split()) == 3:
                         method, path, protocol = request_str.split()
                     else:
                         method, path = ("UNKNOWN", "UNKNOWN")
 
+                    # Extraer Hora
                     try:
                         current_hour = timestamp_str.split(':')[1]
                     except IndexError:
                         current_hour = "00"
 
+                    # Agregacion
                     total_requests += 1
                     ip_counter[ip] += 1
-
                     status_counter[status] += 1
                     total_bytes += int(size_str)
                     method_counter[method] += 1
                     path_counter[path] += 1
                     hour_counter[current_hour] += 1
-                else:
-                    continue
 
         if total_requests == 0:
+            print("Archivo vacio.")
             return
+
+        # --- SECCION DE REPORTES ---
+        # 1. Reporte ASCII (Texto)
         print(f"Procesadas {total_requests} lineas.")
-
-        generate_charts(ip_counter, status_counter, hour_counter)
-
         avg_size = total_bytes / total_requests
-
-        print(f"Total de peticiones  : {total_requests}")
         print(f"Trafico total        : {format_bytes(total_bytes)}")
         print(f"Tamano promedio      : {format_bytes(avg_size)}")
 
         print("\n--- Top 5 IPs ---")
-
         for ip, count in ip_counter.most_common(5):
             percentage = (count / total_requests) * 100
-
             print(f"{ip:<15} : {count} peticiones ({percentage:.1f}%)")
 
         print("\n--- Top Rutas Visitadas ---")
@@ -129,42 +173,35 @@ def process_log_file(file_path):
         for method, count in method_counter.most_common():
             print(f"{method:<10} : {count}")
 
-        print("\n--- Horas Pico de Trafico ---")
-        # Ordenamos por hora (00, 01, 02...) no por cantidad
+        print("\n--- Horas Pico de Trafico (ASCII) ---")
         print(f"{'Hora':<5} | {'Peticiones':<10} | {'Barra Visual'}")
         print("-" * 40)
         for hour, count in sorted(hour_counter.items()):
-            # Generamos una pequeña barra visual con asteriscos
-            # Escalamos: 1 asterisco por cada 50 peticiones aprox (para que quepa en pantalla)
             bar = "*" * (count // 50)
             print(f"{hour:<5} | {count:<10} | {bar}")
 
         print("\n--- Distribucion de Codigos de Estado ---")
-
         for status, count in sorted(status_counter.items()):
             percentage = (count / total_requests) * 100
-
             print(f"Status {status}     : {count:<5} ({percentage:.1f}%)")
 
+        # 2. Generar Graficos (Fase 2)
+        generate_charts(ip_counter, status_counter, hour_counter)  # Matplotlib
+        # Plotly [NUEVO]
+        generate_html_report(hour_counter, status_counter)
+
     except FileNotFoundError:
-
         print(f"Error: El archivo '{file_path}' no existe.")
-
     except ValueError:
-
         print("Error: Se encontro un dato no numerico donde se esperaba un numero.")
-
     except Exception as e:
         print(f"Ocurrio un error inesperado: {e}")
 
 
 if __name__ == "__main__":
-
     if len(sys.argv) != 2:
         print("Uso correcto: python3 main.py <ruta_del_log>")
-
         sys.exit(1)
 
     log_file = sys.argv[1]
-
     process_log_file(log_file)
