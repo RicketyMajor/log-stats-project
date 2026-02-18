@@ -9,12 +9,13 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# [FASE 5] Regex actualizado para capturar la latencia al final (grupo 6)
+# Regex to capture latency at the end
 LOG_PATTERN = r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) (\d+)$'
 
+# Functions for data processing and visualization
 
 def format_bytes(size):
-    """Convierte bytes a unidades legibles (KB, MB, GB)."""
+    #Converts bytes to human-readable units (KB, MB, GB).
     power = 2**10
     n = 0
     power_labels = {0: 'B', 1: 'KB', 2: 'MB', 3: 'GB'}
@@ -25,54 +26,54 @@ def format_bytes(size):
 
 
 def export_results_to_json(data, filename):
-    """[FASE 4] Exporta el diccionario de resultados a un archivo JSON."""
+    #Exports the results dictionary to a JSON file.
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-        print(f"\n[INFO] Datos exportados exitosamente a JSON: {filename}")
+        print(f"\n[INFO] Data successfully exported to JSON: {filename}")
     except Exception as e:
-        print(f"\n[ERROR] No se pudo exportar el JSON: {e}")
+        print(f"\n[ERROR] Could not export JSON: {e}")
 
 
 def generate_charts(ip_counter, status_counter, hour_counter):
-    """[FASE 2A] Genera reportes estaticos (PNG) con Matplotlib."""
-    print("--- Generando reportes visuales (PNG)... ---")
+    #Generates static reports (PNG) with Matplotlib.
+    print("--- Generating visual reports (PNG)... ---")
 
-    # 1. Grafico de Barras: Top 10 IPs
+    # Bar chart: Top 10 IPs
     top_ips = ip_counter.most_common(10)
     x_values = [ip for ip, count in top_ips]
     y_values = [count for ip, count in top_ips]
 
     plt.figure(figsize=(10, 6))
     plt.bar(x_values, y_values, color='skyblue')
-    plt.title('Top 10 IPs mas activas')
-    plt.xlabel('Direccion IP')
-    plt.ylabel('Numero de Peticiones')
+    plt.title('Top 10 Most Active IPs')
+    plt.xlabel('IP Address')
+    plt.ylabel('Number of Requests')
     plt.xticks(rotation=45)
     plt.tight_layout()
 
     plt.savefig('reporte_ips.png')
     plt.close()
-    print("-> Generado: reporte_ips.png")
+    print("-> Generated: reporte_ips.png")
 
-    # 2. Grafico de Torta: Codigos de Estado
+    # Pie chart: Status Codes
     labels = list(status_counter.keys())
     sizes = list(status_counter.values())
 
     plt.figure(figsize=(8, 8))
     plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
-    plt.title('Distribucion de Codigos de Estado HTTP')
+    plt.title('Distribution of HTTP Status Codes')
 
     plt.savefig('reporte_status.png')
     plt.close()
-    print("-> Generado: reporte_status.png")
+    print("-> Generated: reporte_status.png")
 
 
 def generate_html_report(hour_counter, status_counter):
-    """[FASE 2B] Genera Dashboard interactivo (HTML) con Plotly."""
-    print("--- Generando dashboard interactivo (HTML)... ---")
+    #Generates an interactive HTML dashboard with Plotly.
+    print("--- Generating interactive dashboard (HTML)... ---")
 
-    # 1. Preparacion de datos
+    # Data preparation
     hours_sorted = sorted(hour_counter.items())
     x_hours = [h for h, count in hours_sorted]
     y_requests = [count for h, count in hours_sorted]
@@ -80,17 +81,17 @@ def generate_html_report(hour_counter, status_counter):
     labels_status = list(status_counter.keys())
     values_status = list(status_counter.values())
 
-    # 2. Creacion del Lienzo (Subplots)
+    # Subplots creation
     fig = make_subplots(
         rows=1, cols=2,
-        subplot_titles=("Trafico por Hora (24h)", "Distribucion de Errores"),
+        subplot_titles=("Traffic per Hour (24h)", "Error Distribution"),
         specs=[[{"type": "xy"}, {"type": "domain"}]]
     )
 
-    # 3. Añadir Trazas
+    # Add traces
     fig.add_trace(
         go.Bar(x=x_hours, y=y_requests,
-               name="Peticiones", marker_color='indigo'),
+               name="Requests", marker_color='indigo'),
         row=1, col=1
     )
 
@@ -100,33 +101,33 @@ def generate_html_report(hour_counter, status_counter):
         row=1, col=2
     )
 
-    # 4. Estetica Global
+    # Global aesthetics
     fig.update_layout(
-        title_text="Dashboard de Analisis de Logs - Servidor Principal",
+        title_text="Log Analysis Dashboard - Main Server",
         template="plotly_dark",
         showlegend=True
     )
 
-    # 5. Guardar
+    # Save
     fig.write_html("dashboard.html")
-    print("-> Generado: dashboard.html (Abrelo en tu navegador)")
+    print("-> Generated: dashboard.html (Open it in your browser)")
 
 
 def process_log_file(file_path, flags):
-    """Motor principal de procesamiento de logs."""
-    print(f"--- Iniciando analisis de: {file_path} ---\n")
+    #Main log processing engine.
+    print(f"--- Starting analysis of: {file_path} ---\n")
 
     total_requests = 0
     total_bytes = 0
 
-    # Contadores
+    # Counters
     ip_counter = Counter()
     status_counter = Counter()
     method_counter = Counter()
     path_counter = Counter()
     hour_counter = Counter()
 
-    # [FASE 5] Nuevas estructuras para rendimiento y seguridad
+    # New structures for performance and security
     latencies = []
     security_audit = Counter()
 
@@ -144,22 +145,22 @@ def process_log_file(file_path, flags):
                     request_str = match.group(3)
                     status = match.group(4)
                     size_str = match.group(5)
-                    # [FASE 5] Capturamos la latencia
+                    # Capture latency
                     latency_str = match.group(6)
 
-                    # Separar Metodo y Ruta
+                    # Separate Method and Path
                     if len(request_str.split()) == 3:
                         method, path, protocol = request_str.split()
                     else:
                         method, path = ("UNKNOWN", "UNKNOWN")
 
-                    # Extraer Hora
+                    # Extract Hour
                     try:
                         current_hour = timestamp_str.split(':')[1]
                     except IndexError:
                         current_hour = "00"
 
-                    # Agregacion Basica
+                    # Basic aggregation
                     total_requests += 1
                     ip_counter[ip] += 1
                     status_counter[status] += 1
@@ -168,27 +169,27 @@ def process_log_file(file_path, flags):
                     path_counter[path] += 1
                     hour_counter[current_hour] += 1
 
-                    # [FASE 5] Agregacion de Latencia
+                    # Latency aggregation
                     latencies.append(int(latency_str))
 
-                    # [FASE 5] Auditoria de Seguridad (Detectar errores de cliente/servidor)
+                    # Security audit (Detect client/server errors)
                     if status.startswith("4") or status.startswith("5"):
                         security_audit[ip] += 1
 
         if total_requests == 0:
-            print("Archivo vacio o formato invalido.")
+            print("Empty or invalid format file.")
             return
 
-        # --- CALCULOS MATEMATICOS AVANZADOS (FASE 5) ---
+        # Advanced mathematical calculations
         if latencies:
             avg_latency = statistics.mean(latencies)
             p50_latency = statistics.median(latencies)
             try:
-                # Intenta usar quantiles (Python 3.8+)
+                # Try using quantiles (Python 3.8+)
                 p90_latency = statistics.quantiles(latencies, n=10)[8]
                 p99_latency = statistics.quantiles(latencies, n=100)[98]
             except AttributeError:
-                # Fallback manual para versiones antiguas de Python
+                # Manual fallback for older Python versions
                 latencies_sorted = sorted(latencies)
                 p90_latency = latencies_sorted[int(
                     len(latencies_sorted) * 0.9)]
@@ -197,55 +198,51 @@ def process_log_file(file_path, flags):
         else:
             avg_latency = p50_latency = p90_latency = p99_latency = 0
 
-        # ==========================================
-        # IMPRESION DE REPORTES EN TERMINAL (ASCII)
-        # ==========================================
-        print(f"Procesadas {total_requests} lineas.")
+        # Terminal reports (ASCII)
+        print(f"Processed {total_requests} lines.")
         avg_size = total_bytes / total_requests
-        print(f"Trafico total        : {format_bytes(total_bytes)}")
-        print(f"Tamano promedio      : {format_bytes(avg_size)}")
+        print(f"Total traffic        : {format_bytes(total_bytes)}")
+        print(f"Average size      : {format_bytes(avg_size)}")
 
-        # [FASE 5] Print de Rendimiento
-        print("\n--- Rendimiento del Servidor (Latencia) ---")
-        print(f"Promedio : {avg_latency:.2f} ms")
-        print(f"Mediana  : {p50_latency:.2f} ms (El 50% de las peticiones)")
+        # Performance print
+        print("\n--- Server Performance (Latency) ---")
+        print(f"Average : {avg_latency:.2f} ms")
+        print(f"Median  : {p50_latency:.2f} ms (50% of requests)")
         print(
-            f"p90      : {p90_latency:.2f} ms (El 90% es mas rapido que esto)")
-        print(f"p99      : {p99_latency:.2f} ms (El 1% mas lento)")
+            f"p90      : {p90_latency:.2f} ms (90% is faster than this)")
+        print(f"p99      : {p99_latency:.2f} ms (The slowest 1%)")
 
         print("\n--- Top 5 IPs ---")
         for ip, count in ip_counter.most_common(5):
             percentage = (count / total_requests) * 100
-            print(f"{ip:<15} : {count} peticiones ({percentage:.1f}%)")
+            print(f"{ip:<15} : {count} requests ({percentage:.1f}%)")
 
-        print("\n--- Top Rutas Visitadas ---")
+        print("\n--- Top Visited Routes ---")
         for path, count in path_counter.most_common(5):
-            print(f"{path:<20} : {count} visitas")
+            print(f"{path:<20} : {count} visits")
 
-        print("\n--- Horas Pico de Trafico ---")
-        print(f"{'Hora':<5} | {'Peticiones':<10} | {'Barra Visual'}")
+        print("\n--- Peak Traffic Hours ---")
+        print(f"{'Hour':<5} | {'Requests':<10} | {'Visual Bar'}")
         print("-" * 40)
         for hour, count in sorted(hour_counter.items()):
             bar = "*" * (count // 50)
             print(f"{hour:<5} | {count:<10} | {bar}")
 
-        # [FASE 5] Print de Seguridad
-        print("\n--- Auditoria de Seguridad (IPs sospechosas) ---")
+        # Security print
+        print("\n--- Security Audit (Suspicious IPs) ---")
         suspicious_ips = security_audit.most_common(3)
         if not suspicious_ips:
-            print("No se detectaron errores significativos.")
+            print("No significant errors detected.")
         else:
-            print(f"{'IP Atacante':<15} | {'Errores':<8} | {'Nivel de Riesgo'}")
+            print(f"{'Attacker IP':<15} | {'Errors':<8} | {'Risk Level'}")
             print("-" * 45)
             for ip, errors in suspicious_ips:
-                risk = "ALTO" if errors > 500 else "MEDIO"
+                risk = "HIGH" if errors > 500 else "MEDIUM"
                 print(f"{ip:<15} | {errors:<8} | {risk}")
 
-        # ==========================================
-        # INTEROPERABILIDAD Y EXPORTACION (FASE 3 Y 4)
-        # ==========================================
-
-        # 1. Exportar a JSON
+        # Interoperability and Export
+        
+        # Export to JSON
         if flags.json:
             report_data = {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -269,37 +266,37 @@ def process_log_file(file_path, flags):
             }
             export_results_to_json(report_data, flags.json)
 
-        # 2. Generar Graficos Visuales
+        # Generate visual graphics
         if not flags.no_plot:
-            print("\n")  # Salto de linea para que se vea limpio
+            print("\n")  # Newline for clean output
             generate_charts(ip_counter, status_counter, hour_counter)
             generate_html_report(hour_counter, status_counter)
         else:
-            print("\n[INFO] Salida gráfica omitida por el usuario (--no-plot)")
+            print("\n[INFO] Graphic output omitted by the user (--no-plot)")
 
     except FileNotFoundError:
-        print(f"Error: El archivo '{file_path}' no existe.")
+        print(f"Error: The file '{file_path}' does not exist.")
     except Exception as e:
-        print(f"Ocurrio un error critico durante el procesamiento: {e}")
+        print(f"A critical error occurred during processing: {e}")
 
 
 if __name__ == "__main__":
-    # Configuracion de la CLI
+    # CLI configuration
     parser = argparse.ArgumentParser(
-        description="Analizador de Logs (SRE/SecOps). Mide trafico, latencia y seguridad."
+        description="Log Analyzer (SRE/SecOps). Measures traffic, latency, and security."
     )
 
-    parser.add_argument("log_file", help="Ruta al archivo de log a analizar")
+    parser.add_argument("log_file", help="Path to the log file to analyze")
 
     parser.add_argument(
         "--no-plot",
         action="store_true",
-        help="Omite la generacion de graficos (PNG/HTML)."
+        help="Skips the generation of graphics (PNG/HTML)."
     )
 
     parser.add_argument(
         "--json",
-        help="Exporta los resultados estructurados a un archivo JSON (ej: output.json)"
+        help="Exports the structured results to a JSON file (e.g., output.json)"
     )
 
     args = parser.parse_args()
