@@ -27,14 +27,10 @@ def obtener_datos():
 @app.route('/')
 def index():
     """
-    Página principal. Por ahora es texto simple, luego le pondremos un Dashboard.
+    Página principal. Renderiza el Dashboard HTML.
     """
-    html_temporal = """
-    <h1>Sistema de Monitoreo de Logs</h1>
-    <p>El servidor Flask está funcionando correctamente.</p>
-    <p>Para ver los datos crudos de tu API, haz clic aquí: <a href='/api/datos'>/api/datos</a></p>
-    """
-    return html_temporal
+    # render_template busca automáticamente dentro de la carpeta 'templates/'
+    return render_template('index.html')
 
 
 if __name__ == '__main__':
