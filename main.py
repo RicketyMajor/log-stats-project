@@ -2,17 +2,19 @@ import sys
 import re
 import argparse
 import json
+import statistics
 from collections import Counter
 from datetime import datetime
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-
-LOG_PATTERN = r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+)$'
+# [FASE 5] Regex actualizado para capturar la latencia al final (grupo 6)
+LOG_PATTERN = r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) (\d+)$'
 
 
 def format_bytes(size):
+    """Convierte bytes a unidades legibles (KB, MB, GB)."""
     power = 2**10
     n = 0
     power_labels = {0: 'B', 1: 'KB', 2: 'MB', 3: 'GB'}
@@ -23,20 +25,17 @@ def format_bytes(size):
 
 
 def export_results_to_json(data, filename):
-    """
-    [FASE 4] Guarda un diccionario de datos en un archivo JSON.
-    Usa 'indent=4' para que sea legible por humanos (pretty print).
-    """
+    """[FASE 4] Exporta el diccionario de resultados a un archivo JSON."""
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-        print(f"\n[INFO] Datos exportados exitosamente a: {filename}")
+        print(f"\n[INFO] Datos exportados exitosamente a JSON: {filename}")
     except Exception as e:
         print(f"\n[ERROR] No se pudo exportar el JSON: {e}")
 
 
 def generate_charts(ip_counter, status_counter, hour_counter):
-    """Genera reportes estaticos (PNG) con Matplotlib (Fase 2A)"""
+    """[FASE 2A] Genera reportes estaticos (PNG) con Matplotlib."""
     print("--- Generando reportes visuales (PNG)... ---")
 
     # 1. Grafico de Barras: Top 10 IPs
@@ -70,7 +69,7 @@ def generate_charts(ip_counter, status_counter, hour_counter):
 
 
 def generate_html_report(hour_counter, status_counter):
-    """Genera Dashboard interactivo (HTML) con Plotly (Fase 2B)"""
+    """[FASE 2B] Genera Dashboard interactivo (HTML) con Plotly."""
     print("--- Generando dashboard interactivo (HTML)... ---")
 
     # 1. Preparacion de datos
@@ -113,8 +112,10 @@ def generate_html_report(hour_counter, status_counter):
     print("-> Generado: dashboard.html (Abrelo en tu navegador)")
 
 
-def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
+def process_log_file(file_path, flags):
+    """Motor principal de procesamiento de logs."""
     print(f"--- Iniciando analisis de: {file_path} ---\n")
+
     total_requests = 0
     total_bytes = 0
 
@@ -125,20 +126,26 @@ def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
     path_counter = Counter()
     hour_counter = Counter()
 
+    # [FASE 5] Nuevas estructuras para rendimiento y seguridad
+    latencies = []
+    security_audit = Counter()
+
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
-                match = re.match(LOG_PATTERN, line)
 
+                match = re.match(LOG_PATTERN, line)
                 if match:
                     ip = match.group(1)
                     timestamp_str = match.group(2)
                     request_str = match.group(3)
                     status = match.group(4)
                     size_str = match.group(5)
+                    # [FASE 5] Capturamos la latencia
+                    latency_str = match.group(6)
 
                     # Separar Metodo y Ruta
                     if len(request_str.split()) == 3:
@@ -152,7 +159,7 @@ def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
                     except IndexError:
                         current_hour = "00"
 
-                    # Agregacion
+                    # Agregacion Basica
                     total_requests += 1
                     ip_counter[ip] += 1
                     status_counter[status] += 1
@@ -161,15 +168,50 @@ def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
                     path_counter[path] += 1
                     hour_counter[current_hour] += 1
 
+                    # [FASE 5] Agregacion de Latencia
+                    latencies.append(int(latency_str))
+
+                    # [FASE 5] Auditoria de Seguridad (Detectar errores de cliente/servidor)
+                    if status.startswith("4") or status.startswith("5"):
+                        security_audit[ip] += 1
+
         if total_requests == 0:
-            print("Archivo vacio.")
+            print("Archivo vacio o formato invalido.")
             return
 
-        # --- SECCION DE REPORTES (TEXTO ASCII) ---
+        # --- CALCULOS MATEMATICOS AVANZADOS (FASE 5) ---
+        if latencies:
+            avg_latency = statistics.mean(latencies)
+            p50_latency = statistics.median(latencies)
+            try:
+                # Intenta usar quantiles (Python 3.8+)
+                p90_latency = statistics.quantiles(latencies, n=10)[8]
+                p99_latency = statistics.quantiles(latencies, n=100)[98]
+            except AttributeError:
+                # Fallback manual para versiones antiguas de Python
+                latencies_sorted = sorted(latencies)
+                p90_latency = latencies_sorted[int(
+                    len(latencies_sorted) * 0.9)]
+                p99_latency = latencies_sorted[int(
+                    len(latencies_sorted) * 0.99)]
+        else:
+            avg_latency = p50_latency = p90_latency = p99_latency = 0
+
+        # ==========================================
+        # IMPRESION DE REPORTES EN TERMINAL (ASCII)
+        # ==========================================
         print(f"Procesadas {total_requests} lineas.")
         avg_size = total_bytes / total_requests
         print(f"Trafico total        : {format_bytes(total_bytes)}")
         print(f"Tamano promedio      : {format_bytes(avg_size)}")
+
+        # [FASE 5] Print de Rendimiento
+        print("\n--- Rendimiento del Servidor (Latencia) ---")
+        print(f"Promedio : {avg_latency:.2f} ms")
+        print(f"Mediana  : {p50_latency:.2f} ms (El 50% de las peticiones)")
+        print(
+            f"p90      : {p90_latency:.2f} ms (El 90% es mas rapido que esto)")
+        print(f"p99      : {p99_latency:.2f} ms (El 1% mas lento)")
 
         print("\n--- Top 5 IPs ---")
         for ip, count in ip_counter.most_common(5):
@@ -180,53 +222,56 @@ def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
         for path, count in path_counter.most_common(5):
             print(f"{path:<20} : {count} visitas")
 
-        print("\n--- Metodos HTTP ---")
-        for method, count in method_counter.most_common():
-            print(f"{method:<10} : {count}")
-
-        print("\n--- Horas Pico de Trafico (ASCII) ---")
+        print("\n--- Horas Pico de Trafico ---")
         print(f"{'Hora':<5} | {'Peticiones':<10} | {'Barra Visual'}")
         print("-" * 40)
         for hour, count in sorted(hour_counter.items()):
             bar = "*" * (count // 50)
             print(f"{hour:<5} | {count:<10} | {bar}")
 
-        print("\n--- Distribucion de Codigos de Estado ---")
-        for status, count in sorted(status_counter.items()):
-            percentage = (count / total_requests) * 100
-            print(f"Status {status}     : {count:<5} ({percentage:.1f}%)")
-
-        # [FASE 3] LOGICA CONDICIONAL DE GRAFICOS
-        if not flags.no_plot:
-            # Solo generamos gráficos si el usuario NO usó --no-plot
-            generate_charts(ip_counter, status_counter, hour_counter)
-            generate_html_report(hour_counter, status_counter)
+        # [FASE 5] Print de Seguridad
+        print("\n--- Auditoria de Seguridad (IPs sospechosas) ---")
+        suspicious_ips = security_audit.most_common(3)
+        if not suspicious_ips:
+            print("No se detectaron errores significativos.")
         else:
-            print("\n[INFO] Salida gráfica omitida por el usuario (--no-plot)")
+            print(f"{'IP Atacante':<15} | {'Errores':<8} | {'Nivel de Riesgo'}")
+            print("-" * 45)
+            for ip, errors in suspicious_ips:
+                risk = "ALTO" if errors > 500 else "MEDIO"
+                print(f"{ip:<15} | {errors:<8} | {risk}")
 
-        report_data = {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "file_analyzed": file_path,
-            "summary": {
-                "total_requests": total_requests,
-                "total_bytes": total_bytes,
-                "avg_size_bytes": avg_size
-            },
-            # Convertimos lista de tuplas a Dict
-            "top_ips": dict(ip_counter.most_common(10)),
-            "top_paths": dict(path_counter.most_common(10)),
-            "methods": dict(method_counter),
-            "status_codes": dict(status_counter),
-            "hourly_traffic": dict(sorted(hour_counter.items()))
-        }
-        # LOGICA CONDICIONAL (FLAGS)
+        # ==========================================
+        # INTEROPERABILIDAD Y EXPORTACION (FASE 3 Y 4)
+        # ==========================================
 
-        # 1. Exportar JSON si el usuario lo pidió
+        # 1. Exportar a JSON
         if flags.json:
+            report_data = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "file_analyzed": file_path,
+                "summary": {
+                    "total_requests": total_requests,
+                    "total_bytes": total_bytes,
+                    "avg_size_bytes": round(avg_size, 2)
+                },
+                "performance_ms": {
+                    "avg": round(avg_latency, 2),
+                    "p50": round(p50_latency, 2),
+                    "p90": round(p90_latency, 2),
+                    "p99": round(p99_latency, 2)
+                },
+                "top_ips": dict(ip_counter.most_common(10)),
+                "top_paths": dict(path_counter.most_common(10)),
+                "methods": dict(method_counter),
+                "status_codes": dict(status_counter),
+                "security_alerts": dict(suspicious_ips)
+            }
             export_results_to_json(report_data, flags.json)
 
-        # 2. Graficos
+        # 2. Generar Graficos Visuales
         if not flags.no_plot:
+            print("\n")  # Salto de linea para que se vea limpio
             generate_charts(ip_counter, status_counter, hour_counter)
             generate_html_report(hour_counter, status_counter)
         else:
@@ -234,36 +279,28 @@ def process_log_file(file_path, flags):  # [FASE 3] Ahora recibimos 'flags'
 
     except FileNotFoundError:
         print(f"Error: El archivo '{file_path}' no existe.")
-    except ValueError:
-        print("Error: Se encontro un dato no numerico donde se esperaba un numero.")
     except Exception as e:
-        print(f"Ocurrio un error inesperado: {e}")
+        print(f"Ocurrio un error critico durante el procesamiento: {e}")
 
 
 if __name__ == "__main__":
-    # [FASE 3] Configuración de argparse
+    # Configuracion de la CLI
     parser = argparse.ArgumentParser(
-        description="Analizador de Logs de Servidor (CLF). Genera reportes de trafico y seguridad."
+        description="Analizador de Logs (SRE/SecOps). Mide trafico, latencia y seguridad."
     )
 
-    # Argumento posicional (obligatorio): El archivo
     parser.add_argument("log_file", help="Ruta al archivo de log a analizar")
 
-    # Argumento opcional (flag): --no-plot
     parser.add_argument(
         "--no-plot",
         action="store_true",
-        help="Si se usa, no genera graficos (PNG/HTML). Ideal para servidores sin interfaz."
+        help="Omite la generacion de graficos (PNG/HTML)."
     )
 
-    # Argumento opcional: --json (Preparacion para Fase 4)
     parser.add_argument(
         "--json",
-        help="Exportar resultados a un archivo JSON (ej: --json output.json)"
+        help="Exporta los resultados estructurados a un archivo JSON (ej: output.json)"
     )
 
-    # Parsear argumentos
     args = parser.parse_args()
-
-    # Ejecutar logica pasando los argumentos parseados
     process_log_file(args.log_file, args)
